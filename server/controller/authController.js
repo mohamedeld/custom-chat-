@@ -1,3 +1,4 @@
+const getUserDetails = require("../helpers/getUserDetails");
 const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -34,14 +35,54 @@ const loginUser = asyncHandler(async (req,res,next)=>{
     const token = jwt.sign({id:user?._id},process.env.JWT_SECRET_KEY,{
         expiresIn:'90d'
     })
-    res.status(200).json({
+    res.cookie("token",token,{
+        http:true,
+        secure:true
+    }).status(200).json({
         user,
         token
     })
 })
 
 
+const userDetails = asyncHandler(async (req,res)=>{
+    const token = req.cookies?.token || "";
+    const user = await getUserDetails(token);
+    if(!user){
+        return next(new AppError("user is not found",404));
+    }
+    res.status(200).json({
+        user
+    })
+
+})
+
+const updateUser = asyncHandler(async (req,res)=>{
+    const token = req.cookies?.token || "";
+    const user = await getUserDetails(token);
+    if(!user){
+        return next(new AppError("user is not found",404));
+    }
+
+    const updateUser = await User.findByIdAndUpdate(user?._id,req.body,{new:true})
+    res.status(200).json({
+        user:updateUser
+    })
+})
+
+const logout = asyncHandler(async (req,res)=>{
+    return res.cookies('token','',{
+        secure:true,
+        htt:true
+    }).status(200).json({
+        message:"Session out"
+    })
+})
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    userDetails,
+    logout,
+    updateUser
 }
